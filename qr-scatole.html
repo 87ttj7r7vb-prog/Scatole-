@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Scatole</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; }
+  header { background: #1a1a2e; color: #fff; padding: 20px 32px; display: flex; align-items: center; gap: 14px; }
+  header .icon { font-size: 28px; }
+  header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
+  header p { font-size: 0.82rem; color: #8892b0; margin-top: 2px; }
+  .container { max-width: 900px; margin: 0 auto; padding: 28px 20px; }
+  .card { background: #fff; border-radius: 14px; padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); margin-bottom: 28px; }
+  .card h2 { font-size: 1rem; font-weight: 600; color: #444; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  @media(max-width: 540px) { .form-row { grid-template-columns: 1fr; } }
+  label { display: block; font-size: 0.78rem; font-weight: 600; color: #555; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+  input[type="text"], textarea { width: 100%; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; font-size: 0.92rem; font-family: inherit; color: #1a1a2e; transition: border-color .2s; background: #fafbfc; }
+  input:focus, textarea:focus { outline: none; border-color: #4f46e5; background: #fff; }
+  textarea { resize: vertical; min-height: 70px; }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tag { background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe; border-radius: 20px; padding: 3px 10px; font-size: 0.78rem; cursor: pointer; transition: background .15s; }
+  .tag:hover { background: #c7d2fe; }
+  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 11px 22px; border-radius: 9px; font-size: 0.9rem; font-weight: 600; cursor: pointer; border: none; transition: transform .1s, opacity .2s; }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: #4f46e5; color: #fff; }
+  .btn-primary:hover { background: #4338ca; }
+  .btn-outline { background: #fff; color: #4f46e5; border: 1.5px solid #4f46e5; }
+  .btn-outline:hover { background: #eef2ff; }
+  .btn-danger { background: #fff; color: #e53e3e; border: 1.5px solid #feb2b2; }
+  .btn-danger:hover { background: #fff5f5; }
+  .btn-green { background: #fff; color: #16a34a; border: 1.5px solid #86efac; }
+  .btn-green:hover { background: #f0fdf4; }
+  .btn-sm { padding: 7px 14px; font-size: 0.8rem; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+  .qr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+  .qr-card { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); display: flex; flex-direction: column; align-items: center; gap: 12px; position: relative; transition: box-shadow .2s; }
+  .qr-card:hover { box-shadow: 0 4px 18px rgba(79,70,229,0.13); }
+  .qr-card .box-id { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #8892b0; }
+  .qr-card .box-name { font-size: 1rem; font-weight: 700; color: #1a1a2e; text-align: center; }
+  .qr-card .box-desc { font-size: 0.8rem; color: #666; text-align: center; line-height: 1.4; }
+  .qr-wrap { background: #fff; padding: 6px; border-radius: 8px; border: 1.5px solid #e2e8f0; }
+  .qr-card .badge { background: #eef2ff; color: #4f46e5; border-radius: 6px; padding: 2px 8px; font-size: 0.72rem; font-weight: 600; }
+  .qr-card .actions { display: flex; gap: 7px; }
+  .delete-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; cursor: pointer; color: #ccc; font-size: 16px; line-height: 1; transition: color .15s; }
+  .delete-btn:hover { color: #e53e3e; }
+  .empty { text-align: center; padding: 50px 20px; color: #aaa; font-size: 0.95rem; }
+  .empty .icon { font-size: 48px; display: block; margin-bottom: 12px; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+  .section-header h2 { font-size: 1rem; font-weight: 600; color: #444; }
+  #qr-count { background: #1a1a2e; color: #fff; border-radius: 20px; padding: 2px 10px; font-size: 0.78rem; font-weight: 700; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: #fff; padding: 12px 22px; border-radius: 10px; font-size: 0.88rem; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 999; }
+  .toast.show { opacity: 1; }
+  @media print {
+    body { background: #fff; }
+    header, .card, .section-header, .no-print { display: none !important; }
+    .qr-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .qr-card { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; }
+    .delete-btn, .actions { display: none !important; }
+    .container { padding: 0; max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="icon">📦</span>
+  <div>
+    <h1>QR Scatole</h1>
+    <p>Genera, esporta in PDF e salva i QR code delle tue scatole</p>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Form -->
+  <div class="card no-print">
+    <h2>➕ Nuova scatola</h2>
+    <div class="form-row">
+      <div>
+        <label>Nome scatola *</label>
+        <input type="text" id="box-name" placeholder="es. Cucina, Libri, Abbigliamento…">
+      </div>
+      <div>
+        <label>Posizione / Stanza</label>
+        <input type="text" id="box-location" placeholder="es. Camera da letto, Box, Cantina…">
+      </div>
+    </div>
+    <div>
+      <label>Contenuto (descrizione)</label>
+      <textarea id="box-desc" placeholder="Elenca gli oggetti contenuti…"></textarea>
+    </div>
+    <div style="margin-top:10px;">
+      <label>Suggerimenti rapidi</label>
+      <div class="tag-row">
+        <span class="tag" onclick="addTag('Vestiti invernali')">🧥 Vestiti invernali</span>
+        <span class="tag" onclick="addTag('Libri')">📚 Libri</span>
+        <span class="tag" onclick="addTag('Utensili da cucina')">🍳 Utensili cucina</span>
+        <span class="tag" onclick="addTag('Elettronica')">💻 Elettronica</span>
+        <span class="tag" onclick="addTag('Giocattoli')">🧸 Giocattoli</span>
+        <span class="tag" onclick="addTag('Documenti')">📄 Documenti</span>
+        <span class="tag" onclick="addTag('Decorazioni natalizie')">🎄 Natale</span>
+        <span class="tag" onclick="addTag('Scarpe')">👟 Scarpe</span>
+        <span class="tag" onclick="addTag('Attrezzi')">🔧 Attrezzi</span>
+        <span class="tag" onclick="addTag('Oggetti fragili')">⚠️ Fragile</span>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:18px;">
+      <button class="btn btn-primary" onclick="addBox()">✅ Genera QR Code</button>
+      <button class="btn btn-outline" onclick="clearForm()">🗑 Pulisci</button>
+    </div>
+  </div>
+
+  <!-- QR list -->
+  <div>
+    <div class="section-header no-print">
+      <h2>Le tue scatole <span id="qr-count">0</span></h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-green btn-sm" onclick="exportPDF()">📄 Esporta PDF</button>
+        <button class="btn btn-outline btn-sm" onclick="exportJSON()">💾 Salva backup</button>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('import-file').click()">📂 Importa backup</button>
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)">
+        <button class="btn btn-outline btn-sm" onclick="window.print()">🖨 Stampa</button>
+        <button class="btn btn-danger btn-sm" onclick="clearAll()">🗑 Cancella tutto</button>
+      </div>
+    </div>
+    <div id="qr-grid" class="qr-grid">
+      <div class="empty" id="empty-state">
+        <span class="icon">📦</span>
+        Nessuna scatola ancora.<br>Crea la prima usando il modulo sopra!
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Hidden canvas for QR generation during PDF export -->
+<div id="qr-hidden" style="position:absolute;left:-9999px;top:-9999px;"></div>
+
+<script>
+const { jsPDF } = window.jspdf;
+
+let boxes = JSON.parse(localStorage.getItem('qr-boxes') || '[]');
+let counter = parseInt(localStorage.getItem('qr-counter') || '0');
+
+function save() {
+  localStorage.setItem('qr-boxes', JSON.stringify(boxes));
+  localStorage.setItem('qr-counter', counter);
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+function addTag(text) {
+  const desc = document.getElementById('box-desc');
+  const val = desc.value.trim();
+  desc.value = val ? val + ', ' + text : text;
+  desc.focus();
+}
+
+function clearForm() {
+  document.getElementById('box-name').value = '';
+  document.getElementById('box-location').value = '';
+  document.getElementById('box-desc').value = '';
+}
+
+function addBox() {
+  const name = document.getElementById('box-name').value.trim();
+  const location = document.getElementById('box-location').value.trim();
+  const desc = document.getElementById('box-desc').value.trim();
+  if (!name) {
+    const inp = document.getElementById('box-name');
+    inp.focus(); inp.style.borderColor = '#e53e3e';
+    setTimeout(() => inp.style.borderColor = '', 1500);
+    return;
+  }
+  counter++;
+  const id = 'SCT-' + String(counter).padStart(3, '0');
+  boxes.push({ id, name, location, desc, ts: Date.now() });
+  save();
+  renderAll();
+  clearForm();
+  document.getElementById('box-name').focus();
+  toast('✅ Scatola aggiunta!');
+}
+
+function deleteBox(id) {
+  boxes = boxes.filter(b => b.id !== id);
+  save(); renderAll();
+}
+
+function clearAll() {
+  if (boxes.length === 0) return;
+  if (!confirm('Cancellare tutte le scatole?')) return;
+  boxes = []; counter = 0;
+  save(); renderAll();
+}
+
+// ── JSON backup ──────────────────────────────────────────────
+function exportJSON() {
+  if (boxes.length === 0) { toast('Nessuna scatola da salvare!'); return; }
+  const data = JSON.stringify({ boxes, counter }, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = 'qr-scatole-backup.json'; a.click();
+  URL.revokeObjectURL(url);
+  toast('💾 Backup salvato!');
+}
+
+function importJSON(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data.boxes || !Array.isArray(data.boxes)) throw new Error();
+      if (!confirm(`Importare ${data.boxes.length} scatole? I dati attuali verranno sostituiti.`)) return;
+      boxes = data.boxes;
+      counter = data.counter || boxes.length;
+      save(); renderAll();
+      toast(`📂 Importate ${boxes.length} scatole!`);
+    } catch { toast('❌ File non valido'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ── PDF export ────────────────────────────────────────────────
+function makeQRDataURL(text) {
+  return new Promise(resolve => {
+    const div = document.createElement('div');
+    document.getElementById('qr-hidden').appendChild(div);
+    const qr = new QRCode(div, {
+      text, width: 200, height: 200,
+      colorDark: '#1a1a2e', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+    setTimeout(() => {
+      const img = div.querySelector('img') || div.querySelector('canvas');
+      const url = img.tagName === 'IMG' ? img.src : img.toDataURL('image/png');
+      div.remove();
+      resolve(url);
+    }, 300);
+  });
+}
+
+async function exportPDF() {
+  if (boxes.length === 0) { toast('Nessuna scatola da esportare!'); return; }
+  toast('⏳ Generazione PDF in corso…');
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW = 210, pageH = 297;
+  const cols = 3, rows = 3;
+  const cellW = pageW / cols;   // 70mm
+  const cellH = pageH / rows;   // ~99mm
+  const qrSize = 42;
+  const margin = 4;
+
+  for (let i = 0; i < boxes.length; i++) {
+    const box = boxes[i];
+    const col = i % cols;
+    const row = Math.floor(i / cols) % rows;
+
+    if (i > 0 && col === 0 && row === 0) doc.addPage();
+
+    const x = col * cellW;
+    const y = row * cellH;
+
+    // cell border
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.3);
+    doc.rect(x + 1, y + 1, cellW - 2, cellH - 2);
+
+    // QR code
+    const qrText = ['ID: ' + box.id, 'Scatola: ' + box.name,
+      box.location ? 'Stanza: ' + box.location : '',
+      box.desc ? 'Contenuto: ' + box.desc : ''].filter(Boolean).join('\n');
+    const imgData = await makeQRDataURL(qrText);
+    const qrX = x + (cellW - qrSize) / 2;
+    doc.addImage(imgData, 'PNG', qrX, y + margin + 2, qrSize, qrSize);
+
+    let ty = y + margin + 2 + qrSize + 4;
+
+    // ID
+    doc.setFontSize(7); doc.setTextColor(140, 140, 160);
+    doc.setFont('helvetica', 'bold');
+    doc.text(box.id, x + cellW / 2, ty, { align: 'center' });
+    ty += 5;
+
+    // Name
+    doc.setFontSize(11); doc.setTextColor(26, 26, 46);
+    doc.setFont('helvetica', 'bold');
+    const nameLines = doc.splitTextToSize(box.name, cellW - margin * 2);
+    doc.text(nameLines, x + cellW / 2, ty, { align: 'center' });
+    ty += nameLines.length * 5 + 2;
+
+    // Location
+    if (box.location) {
+      doc.setFontSize(8); doc.setTextColor(79, 70, 229);
+      doc.setFont('helvetica', 'normal');
+      doc.text('📍 ' + box.location, x + cellW / 2, ty, { align: 'center' });
+      ty += 5;
+    }
+
+    // Description
+    if (box.desc) {
+      doc.setFontSize(7.5); doc.setTextColor(100, 100, 100);
+      doc.setFont('helvetica', 'normal');
+      const descLines = doc.splitTextToSize(box.desc, cellW - margin * 2 - 2);
+      const maxLines = Math.min(descLines.length, 4);
+      doc.text(descLines.slice(0, maxLines), x + cellW / 2, ty, { align: 'center' });
+    }
+  }
+
+  doc.save('qr-scatole.pdf');
+  toast('📄 PDF scaricato!');
+}
+
+// ── Render ────────────────────────────────────────────────────
+function renderAll() {
+  const grid = document.getElementById('qr-grid');
+  const empty = document.getElementById('empty-state');
+  document.getElementById('qr-count').textContent = boxes.length;
+  [...grid.querySelectorAll('.qr-card')].forEach(el => el.remove());
+  if (boxes.length === 0) { empty.style.display = ''; return; }
+  empty.style.display = 'none';
+
+  boxes.forEach(box => {
+    const card = document.createElement('div');
+    card.className = 'qr-card';
+    const qrText = ['ID: ' + box.id, 'Scatola: ' + box.name,
+      box.location ? 'Stanza: ' + box.location : '',
+      box.desc ? 'Contenuto: ' + box.desc : ''].filter(Boolean).join('\n');
+
+    card.innerHTML = `
+      <button class="delete-btn no-print" onclick="deleteBox('${box.id}')" title="Elimina">✕</button>
+      <div class="box-id">${esc(box.id)}</div>
+      <div class="qr-wrap" id="qr-${box.id}"></div>
+      <div class="box-name">${esc(box.name)}</div>
+      ${box.location ? `<div class="badge">📍 ${esc(box.location)}</div>` : ''}
+      ${box.desc ? `<div class="box-desc">${esc(box.desc)}</div>` : ''}
+      <div class="actions no-print">
+        <button class="btn btn-outline btn-sm" onclick="printCard('${box.id}')">🖨 Stampa</button>
+      </div>`;
+    grid.appendChild(card);
+
+    new QRCode(document.getElementById('qr-' + box.id), {
+      text: qrText, width: 150, height: 150,
+      colorDark: '#1a1a2e', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  });
+}
+
+function printCard(id) {
+  const box = boxes.find(b => b.id === id);
+  if (!box) return;
+  const qrText = ['ID: ' + box.id, 'Scatola: ' + box.name,
+    box.location ? 'Stanza: ' + box.location : '',
+    box.desc ? 'Contenuto: ' + box.desc : ''].filter(Boolean).join('\n');
+  const win = window.open('', '_blank', 'width=400,height=500');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>
+    body{font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px;}
+    .id{font-size:.7rem;color:#888;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+    .name{font-size:1.2rem;font-weight:700;margin:6px 0;text-align:center;}
+    .loc{font-size:.85rem;color:#4f46e5;margin-bottom:4px;}
+    .desc{font-size:.8rem;color:#555;text-align:center;max-width:250px;line-height:1.4;}
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+  </head><body>
+  <div class="id">${box.id}</div>
+  <div id="qrcode"></div>
+  <div class="name">${esc(box.name)}</div>
+  ${box.location ? `<div class="loc">📍 ${esc(box.location)}</div>` : ''}
+  ${box.desc ? `<div class="desc">${esc(box.desc)}</div>` : ''}
+  <script>
+    new QRCode(document.getElementById("qrcode"),{text:${JSON.stringify(qrText)},width:200,height:200,colorDark:"#1a1a2e",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});
+    setTimeout(()=>window.print(),600);
+  <\/script></body></html>`);
+  win.document.close();
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+renderAll();
+</script>
+</body>
+</html>

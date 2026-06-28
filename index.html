@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Scatole</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; }
+
+/* ── HEADER ── */
+header { background: #1a1a2e; color: #fff; padding: 18px 28px; display: flex; align-items: center; gap: 14px; }
+header .icon { font-size: 26px; }
+header h1 { font-size: 1.3rem; font-weight: 700; }
+header p { font-size: 0.8rem; color: #8892b0; margin-top: 2px; }
+
+/* ── LAYOUT ── */
+.container { max-width: 960px; margin: 0 auto; padding: 28px 20px; }
+
+/* ── CARDS ── */
+.card { background: #fff; border-radius: 14px; padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); margin-bottom: 24px; }
+.card h2 { font-size: 1rem; font-weight: 600; color: #444; margin-bottom: 16px; }
+
+/* ── FORM ── */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+@media(max-width:540px){ .form-row { grid-template-columns: 1fr; } }
+label { display: block; font-size: 0.75rem; font-weight: 700; color: #555; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+input[type="text"], textarea { width: 100%; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; font-size: 0.92rem; font-family: inherit; color: #1a1a2e; transition: border-color .2s; background: #fafbfc; }
+input:focus, textarea:focus { outline: none; border-color: #4f46e5; background: #fff; }
+textarea { resize: vertical; min-height: 70px; }
+.tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.tag { background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe; border-radius: 20px; padding: 3px 10px; font-size: 0.78rem; cursor: pointer; }
+.tag:hover { background: #c7d2fe; }
+
+/* ── BUTTONS ── */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 9px; font-size: 0.88rem; font-weight: 600; cursor: pointer; border: none; transition: transform .1s; }
+.btn:active { transform: scale(.97); }
+.btn-primary { background: #4f46e5; color: #fff; }
+.btn-primary:hover { background: #4338ca; }
+.btn-outline { background: #fff; color: #4f46e5; border: 1.5px solid #4f46e5; }
+.btn-outline:hover { background: #eef2ff; }
+.btn-green { background: #fff; color: #16a34a; border: 1.5px solid #86efac; }
+.btn-green:hover { background: #f0fdf4; }
+.btn-danger { background: #fff; color: #e53e3e; border: 1.5px solid #feb2b2; }
+.btn-danger:hover { background: #fff5f5; }
+.btn-sm { padding: 6px 13px; font-size: 0.78rem; }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+/* ── SECTION HEADER ── */
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+.section-header h2 { font-size: 1rem; font-weight: 600; color: #444; }
+#qr-count { background: #1a1a2e; color: #fff; border-radius: 20px; padding: 2px 10px; font-size: 0.78rem; font-weight: 700; }
+
+/* ── QR GRID ── */
+.qr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+.qr-card { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); display: flex; flex-direction: column; align-items: center; gap: 10px; position: relative; transition: box-shadow .2s; }
+.qr-card:hover { box-shadow: 0 4px 18px rgba(79,70,229,0.13); }
+.qr-wrap { background: #fff; padding: 6px; border-radius: 8px; border: 1.5px solid #e2e8f0; }
+.box-id { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #8892b0; }
+.box-name { font-size: 1rem; font-weight: 700; color: #1a1a2e; text-align: center; }
+.box-location { background: #eef2ff; color: #4f46e5; border-radius: 6px; padding: 2px 8px; font-size: 0.72rem; font-weight: 600; }
+.box-desc { font-size: 0.78rem; color: #666; text-align: center; line-height: 1.4; }
+.card-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+
+/* ── EMPTY ── */
+.empty { text-align: center; padding: 50px 20px; color: #aaa; font-size: 0.95rem; grid-column: 1/-1; }
+.empty .eicon { font-size: 48px; display: block; margin-bottom: 12px; }
+
+/* ── MODAL EDIT ── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.open { display: flex; }
+.modal { background: #fff; border-radius: 16px; padding: 28px; width: 100%; max-width: 480px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+.modal h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 18px; color: #1a1a2e; }
+.modal .btn-row { margin-top: 20px; }
+
+/* ── DETAIL VIEW (quando si arriva da QR) ── */
+#detail-view { display: none; }
+#detail-view.active { display: block; }
+#main-view.hidden { display: none; }
+
+.detail-card { max-width: 500px; margin: 40px auto; background: #fff; border-radius: 20px; padding: 36px 28px; box-shadow: 0 4px 24px rgba(0,0,0,0.1); text-align: center; }
+.detail-card .big-id { font-size: 0.75rem; font-weight: 700; color: #8892b0; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+.detail-card .big-name { font-size: 1.6rem; font-weight: 800; color: #1a1a2e; margin: 10px 0 6px; }
+.detail-card .big-loc { font-size: 0.95rem; color: #4f46e5; font-weight: 600; margin-bottom: 16px; }
+.detail-card .big-desc { font-size: 0.95rem; color: #444; line-height: 1.7; white-space: pre-wrap; text-align: left; background: #f8f9fc; border-radius: 10px; padding: 14px 16px; }
+.detail-card .back-btn { margin-top: 24px; }
+.detail-card .qr-wrap { margin: 0 auto 16px; display: inline-block; }
+
+/* ── TOAST ── */
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: #fff; padding: 12px 22px; border-radius: 10px; font-size: 0.88rem; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 200; white-space: nowrap; }
+.toast.show { opacity: 1; }
+
+/* ── URL BANNER ── */
+.url-banner { background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; font-size: 0.82rem; color: #15803d; display: none; }
+.url-banner strong { display: block; margin-bottom: 4px; font-size: 0.85rem; }
+.url-banner code { background: #dcfce7; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; word-break: break-all; }
+
+/* ── PRINT ── */
+@media print {
+  body { background: #fff; }
+  header, .card, .section-header, .no-print { display: none !important; }
+  .qr-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+  .qr-card { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; }
+  .card-actions { display: none !important; }
+  .container { padding: 0; max-width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="icon">📦</span>
+  <div>
+    <h1>QR Scatole</h1>
+    <p>Gestisci, modifica ed esporta i QR code delle tue scatole</p>
+  </div>
+</header>
+
+<!-- ══ DETAIL VIEW (da scansione QR) ══ -->
+<div id="detail-view">
+  <div class="container">
+    <div class="detail-card">
+      <div class="big-id" id="d-id"></div>
+      <div class="qr-wrap" id="d-qr"></div>
+      <div class="big-name" id="d-name"></div>
+      <div class="big-loc" id="d-loc"></div>
+      <div class="big-desc" id="d-desc"></div>
+      <button class="btn btn-outline back-btn" onclick="goHome()">← Torna all'elenco</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MAIN VIEW ══ -->
+<div id="main-view">
+<div class="container">
+
+  <!-- URL info banner (shown after deploy) -->
+  <div class="url-banner" id="url-banner">
+    <strong>🌐 URL della tua app</strong>
+    Usa questo link nei QR code: <code id="base-url-display"></code>
+  </div>
+
+  <!-- Form -->
+  <div class="card no-print">
+    <h2>➕ Nuova scatola</h2>
+    <div class="form-row">
+      <div>
+        <label>Nome scatola *</label>
+        <input type="text" id="box-name" placeholder="es. Cucina, Libri, Abbigliamento…">
+      </div>
+      <div>
+        <label>Posizione / Stanza</label>
+        <input type="text" id="box-location" placeholder="es. Camera da letto, Box, Cantina…">
+      </div>
+    </div>
+    <div>
+      <label>Contenuto</label>
+      <textarea id="box-desc" placeholder="Elenca gli oggetti contenuti…"></textarea>
+    </div>
+    <div style="margin-top:10px;">
+      <label>Suggerimenti rapidi</label>
+      <div class="tag-row">
+        <span class="tag" onclick="addTag('Vestiti invernali')">🧥 Vestiti invernali</span>
+        <span class="tag" onclick="addTag('Libri')">📚 Libri</span>
+        <span class="tag" onclick="addTag('Utensili da cucina')">🍳 Utensili cucina</span>
+        <span class="tag" onclick="addTag('Elettronica')">💻 Elettronica</span>
+        <span class="tag" onclick="addTag('Giocattoli')">🧸 Giocattoli</span>
+        <span class="tag" onclick="addTag('Documenti')">📄 Documenti</span>
+        <span class="tag" onclick="addTag('Decorazioni natalizie')">🎄 Natale</span>
+        <span class="tag" onclick="addTag('Scarpe')">👟 Scarpe</span>
+        <span class="tag" onclick="addTag('Attrezzi')">🔧 Attrezzi</span>
+        <span class="tag" onclick="addTag('Oggetti fragili')">⚠️ Fragile</span>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="addBox()">✅ Genera QR Code</button>
+      <button class="btn btn-outline" onclick="clearForm()">🗑 Pulisci</button>
+    </div>
+  </div>
+
+  <!-- QR list -->
+  <div>
+    <div class="section-header no-print">
+      <h2>Le tue scatole <span id="qr-count">0</span></h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-green btn-sm" onclick="exportPDF()">📄 Esporta PDF</button>
+        <button class="btn btn-outline btn-sm" onclick="exportJSON()">💾 Backup</button>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('import-file').click()">📂 Importa</button>
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)">
+        <button class="btn btn-outline btn-sm" onclick="window.print()">🖨 Stampa</button>
+        <button class="btn btn-danger btn-sm" onclick="clearAll()">🗑 Cancella tutto</button>
+      </div>
+    </div>
+    <div id="qr-grid" class="qr-grid">
+      <div class="empty" id="empty-state">
+        <span class="eicon">📦</span>
+        Nessuna scatola ancora.<br>Crea la prima usando il modulo sopra!
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══ MODAL MODIFICA ══ -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <h3>✏️ Modifica scatola</h3>
+    <input type="hidden" id="edit-id">
+    <div class="form-row">
+      <div>
+        <label>Nome scatola *</label>
+        <input type="text" id="edit-name" placeholder="Nome">
+      </div>
+      <div>
+        <label>Posizione / Stanza</label>
+        <input type="text" id="edit-location" placeholder="Stanza">
+      </div>
+    </div>
+    <div>
+      <label>Contenuto</label>
+      <textarea id="edit-desc" placeholder="Contenuto…"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveEdit()">💾 Salva modifiche</button>
+      <button class="btn btn-outline" onclick="closeModal()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="qr-hidden" style="position:absolute;left:-9999px;top:-9999px;"></div>
+
+<script>
+const { jsPDF } = window.jspdf;
+
+let boxes = JSON.parse(localStorage.getItem('qr-boxes') || '[]');
+let counter = parseInt(localStorage.getItem('qr-counter') || '0');
+
+// ── Base URL (il link della tua app su GitHub Pages) ─────────
+function getBaseURL() {
+  // Usa l'URL reale della pagina, senza hash
+  return window.location.href.split('#')[0];
+}
+
+function qrURL(id) {
+  return getBaseURL() + '#' + id;
+}
+
+// ── Routing da hash ──────────────────────────────────────────
+function handleRoute() {
+  const hash = window.location.hash.replace('#', '').trim();
+  if (hash && hash.startsWith('SCT-')) {
+    const box = boxes.find(b => b.id === hash);
+    if (box) { showDetail(box); return; }
+  }
+  showMain();
+}
+
+function showDetail(box) {
+  document.getElementById('main-view').classList.add('hidden');
+  document.getElementById('detail-view').classList.add('active');
+  document.getElementById('d-id').textContent = box.id;
+  document.getElementById('d-name').textContent = box.name;
+  document.getElementById('d-loc').textContent = box.location ? '📍 ' + box.location : '';
+  document.getElementById('d-desc').textContent = box.desc || '(nessuna descrizione)';
+  // QR
+  const qrDiv = document.getElementById('d-qr');
+  qrDiv.innerHTML = '';
+  new QRCode(qrDiv, { text: qrURL(box.id), width: 160, height: 160, colorDark: '#1a1a2e', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+}
+
+function showMain() {
+  document.getElementById('main-view').classList.remove('hidden');
+  document.getElementById('detail-view').classList.remove('active');
+}
+
+function goHome() {
+  window.location.hash = '';
+  showMain();
+}
+
+window.addEventListener('hashchange', handleRoute);
+
+// ── Helpers ──────────────────────────────────────────────────
+function save() {
+  localStorage.setItem('qr-boxes', JSON.stringify(boxes));
+  localStorage.setItem('qr-counter', String(counter));
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function addTag(text) {
+  const desc = document.getElementById('box-desc');
+  desc.value = desc.value.trim() ? desc.value.trim() + ', ' + text : text;
+  desc.focus();
+}
+
+function clearForm() {
+  ['box-name','box-location','box-desc'].forEach(id => document.getElementById(id).value = '');
+}
+
+// ── Aggiungi ─────────────────────────────────────────────────
+function addBox() {
+  const name = document.getElementById('box-name').value.trim();
+  const location = document.getElementById('box-location').value.trim();
+  const desc = document.getElementById('box-desc').value.trim();
+  if (!name) {
+    const inp = document.getElementById('box-name');
+    inp.focus(); inp.style.borderColor = '#e53e3e';
+    setTimeout(() => inp.style.borderColor = '', 1500);
+    return;
+  }
+  counter++;
+  const id = 'SCT-' + String(counter).padStart(3, '0');
+  boxes.push({ id, name, location, desc, ts: Date.now() });
+  save(); renderAll(); clearForm();
+  document.getElementById('box-name').focus();
+  toast('✅ Scatola aggiunta!');
+}
+
+// ── Modifica ─────────────────────────────────────────────────
+function openEdit(id) {
+  const box = boxes.find(b => b.id === id);
+  if (!box) return;
+  document.getElementById('edit-id').value = id;
+  document.getElementById('edit-name').value = box.name;
+  document.getElementById('edit-location').value = box.location || '';
+  document.getElementById('edit-desc').value = box.desc || '';
+  document.getElementById('edit-modal').classList.add('open');
+  setTimeout(() => document.getElementById('edit-name').focus(), 100);
+}
+
+function closeModal() {
+  document.getElementById('edit-modal').classList.remove('open');
+}
+
+function saveEdit() {
+  const id = document.getElementById('edit-id').value;
+  const name = document.getElementById('edit-name').value.trim();
+  if (!name) { document.getElementById('edit-name').focus(); return; }
+  const box = boxes.find(b => b.id === id);
+  if (!box) return;
+  box.name = name;
+  box.location = document.getElementById('edit-location').value.trim();
+  box.desc = document.getElementById('edit-desc').value.trim();
+  save(); renderAll(); closeModal();
+  toast('✏️ Scatola aggiornata! Il QR è invariato.');
+}
+
+// Chiudi modal cliccando fuori
+document.getElementById('edit-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ── Elimina ──────────────────────────────────────────────────
+function deleteBox(id) {
+  if (!confirm('Eliminare questa scatola?')) return;
+  boxes = boxes.filter(b => b.id !== id);
+  save(); renderAll();
+  toast('🗑 Scatola eliminata');
+}
+
+function clearAll() {
+  if (!boxes.length) return;
+  if (!confirm('Cancellare tutte le scatole?')) return;
+  boxes = []; counter = 0;
+  save(); renderAll();
+}
+
+// ── Backup JSON ──────────────────────────────────────────────
+function exportJSON() {
+  if (!boxes.length) { toast('Nessuna scatola da salvare!'); return; }
+  const blob = new Blob([JSON.stringify({ boxes, counter }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'qr-scatole-backup.json'; a.click();
+  toast('💾 Backup salvato!');
+}
+
+function importJSON(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!Array.isArray(data.boxes)) throw new Error();
+      if (!confirm(`Importare ${data.boxes.length} scatole? I dati attuali verranno sostituiti.`)) return;
+      boxes = data.boxes; counter = data.counter || boxes.length;
+      save(); renderAll();
+      toast(`📂 Importate ${boxes.length} scatole!`);
+    } catch { toast('❌ File non valido'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ── PDF export ───────────────────────────────────────────────
+function makeQRDataURL(text) {
+  return new Promise(resolve => {
+    const div = document.createElement('div');
+    document.getElementById('qr-hidden').appendChild(div);
+    new QRCode(div, { text, width: 200, height: 200, colorDark: '#1a1a2e', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+    setTimeout(() => {
+      const el = div.querySelector('img') || div.querySelector('canvas');
+      const url = el.tagName === 'IMG' ? el.src : el.toDataURL('image/png');
+      div.remove(); resolve(url);
+    }, 350);
+  });
+}
+
+async function exportPDF() {
+  if (!boxes.length) { toast('Nessuna scatola da esportare!'); return; }
+  toast('⏳ Generazione PDF…');
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const cols = 3, rows = 3;
+  const cellW = 210 / cols, cellH = 297 / rows;
+  const qrSize = 44, mg = 4;
+
+  for (let i = 0; i < boxes.length; i++) {
+    const box = boxes[i];
+    const col = i % cols, row = Math.floor(i / cols) % rows;
+    if (i > 0 && col === 0 && row === 0) doc.addPage();
+    const x = col * cellW, y = row * cellH;
+
+    doc.setDrawColor(200,200,200); doc.setLineWidth(0.3);
+    doc.rect(x+1, y+1, cellW-2, cellH-2);
+
+    // QR punta all'URL della pagina
+    const imgData = await makeQRDataURL(qrURL(box.id));
+    doc.addImage(imgData, 'PNG', x + (cellW-qrSize)/2, y + mg + 2, qrSize, qrSize);
+
+    let ty = y + mg + 2 + qrSize + 4;
+
+    doc.setFontSize(7); doc.setTextColor(140,140,160); doc.setFont('helvetica','bold');
+    doc.text(box.id, x + cellW/2, ty, { align:'center' }); ty += 5;
+
+    doc.setFontSize(11); doc.setTextColor(26,26,46); doc.setFont('helvetica','bold');
+    const nl = doc.splitTextToSize(box.name, cellW - mg*2);
+    doc.text(nl, x + cellW/2, ty, { align:'center' }); ty += nl.length * 5 + 2;
+
+    if (box.location) {
+      doc.setFontSize(8); doc.setTextColor(79,70,229); doc.setFont('helvetica','normal');
+      doc.text('📍 ' + box.location, x + cellW/2, ty, { align:'center' }); ty += 5;
+    }
+    if (box.desc) {
+      doc.setFontSize(7.5); doc.setTextColor(100,100,100); doc.setFont('helvetica','normal');
+      const dl = doc.splitTextToSize(box.desc, cellW - mg*2);
+      doc.text(dl.slice(0,4), x + cellW/2, ty, { align:'center' });
+    }
+  }
+  doc.save('qr-scatole.pdf');
+  toast('📄 PDF scaricato!');
+}
+
+// ── Render ───────────────────────────────────────────────────
+function renderAll() {
+  const grid = document.getElementById('qr-grid');
+  const empty = document.getElementById('empty-state');
+  document.getElementById('qr-count').textContent = boxes.length;
+  [...grid.querySelectorAll('.qr-card')].forEach(el => el.remove());
+
+  if (!boxes.length) { empty.style.display = ''; return; }
+  empty.style.display = 'none';
+
+  boxes.forEach(box => {
+    const card = document.createElement('div');
+    card.className = 'qr-card';
+    card.innerHTML = `
+      <div class="box-id">${esc(box.id)}</div>
+      <div class="qr-wrap" id="qr-${box.id}"></div>
+      <div class="box-name">${esc(box.name)}</div>
+      ${box.location ? `<div class="box-location">📍 ${esc(box.location)}</div>` : ''}
+      ${box.desc ? `<div class="box-desc">${esc(box.desc)}</div>` : ''}
+      <div class="card-actions no-print">
+        <button class="btn btn-outline btn-sm" onclick="openEdit('${box.id}')">✏️ Modifica</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteBox('${box.id}')">🗑</button>
+      </div>`;
+    grid.appendChild(card);
+
+    // QR punta all'URL della pagina con hash
+    new QRCode(document.getElementById('qr-' + box.id), {
+      text: qrURL(box.id),
+      width: 150, height: 150,
+      colorDark: '#1a1a2e', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  });
+
+  // Mostra URL base se siamo già su un server (non file://)
+  if (window.location.protocol !== 'file:') {
+    const banner = document.getElementById('url-banner');
+    document.getElementById('base-url-display').textContent = getBaseURL();
+    banner.style.display = 'block';
+  }
+}
+
+// ── Init ─────────────────────────────────────────────────────
+handleRoute();
+if (!window.location.hash) renderAll();
+</script>
+</body>
+</html>
